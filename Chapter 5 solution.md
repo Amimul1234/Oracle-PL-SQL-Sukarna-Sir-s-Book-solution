@@ -97,11 +97,14 @@ HAVING count(E2.EMPLOYEE_ID) >= 3;
 ```
 
 -- 5.1 i</br>
--- TODO: Need to assign rank to salaries
-SELECT
+```sql
+SELECT E1.LAST_NAME, COUNT(DISTINCT E2.SALARY) + 1 as Rank
 FROM EMPLOYEES E1
-         inner join EMPLOYEES E2 ON E1.SALARY
-
+         LEFT JOIN EMPLOYEES E2
+                   ON (E1.SALARY < E2.SALARY)
+GROUP BY E1.EMPLOYEE_ID, E1.LAST_NAME
+order by Rank;
+```
 
 
 -- 5.1 j</br>
