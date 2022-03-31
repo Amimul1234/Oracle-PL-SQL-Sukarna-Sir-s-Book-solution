@@ -3,38 +3,39 @@
 -- 5.1 a</br>
 -- For each employee print last name, salary, and job title.
 ```sql
-select LAST_NAME, SALARY, JOB_TITLE
-from EMPLOYEES
-         inner join JOBS J on J.JOB_ID = EMPLOYEES.JOB_ID;
+SELECT last_name, salary, job_title
+FROM employees
+         LEFT JOIN jobs ON employees.job_id = jobs.job_id;
 ```
 
 -- 5.1 b</br>
 -- For each department, print department name and country name it is situated in.
 ```sql
-select DEPARTMENT_NAME, COUNTRY_NAME
-from DEPARTMENTS
-         natural join LOCATIONS
-         natural join COUNTRIES;
+SELECT department_name, country_name
+FROM departments
+         LEFT JOIN locations l ON departments.location_id = l.location_id
+         LEFT JOIN countries c2 ON c2.country_id = l.country_id;
 ```
 
 -- 5.1 c</br>
 -- For each country, finds total number of departments situated in the country.
 ```sql
-select COUNTRY_NAME, COUNT(DEPARTMENT_ID) "Total Number of departments"
-from COUNTRIES
-         natural join LOCATIONS
-         natural join DEPARTMENTS
-group by COUNTRY_NAME;
+SELECT country_name, COUNT(department_name)
+FROM countries
+         LEFT JOIN locations l ON countries.country_id = l.country_id
+         LEFT JOIN departments d ON l.location_id = d.location_id
+GROUP BY country_name;
 ```
 
 
 -- 5.1 d</br>
 -- For each employee, finds the number of job switches of the employee.
 ```sql
-select EMPLOYEES.EMPLOYEE_ID, count(JOB_HISTORY.JOB_ID) "Number of job switches"
-FROM EMPLOYEES
-         join JOB_HISTORY on EMPLOYEES.EMPLOYEE_ID = JOB_HISTORY.EMPLOYEE_ID
-group by EMPLOYEES.EMPLOYEE_ID;
+SELECT employees.employee_id, COUNT(jh.job_id)
+FROM employees
+         LEFT JOIN job_history jh ON employees.employee_id = jh.employee_id
+GROUP BY employees.employee_id
+ORDER BY employees.employee_id;
 ```
 
 -- 5.1 e</br>
@@ -43,11 +44,14 @@ For each department and job types, find the total number of employees working. P
 department names, job titles, and total employees working.
  */
  ```sql
-SELECT D.DEPARTMENT_NAME, J.JOB_TITLE, count(E.EMPLOYEE_ID) "Total Number of employees"
-from DEPARTMENTS D
-         inner join EMPLOYEES E on D.DEPARTMENT_ID = E.DEPARTMENT_ID
-         inner join JOBS J on J.JOB_ID = E.JOB_ID
-group by D.DEPARTMENT_NAME, j.JOB_TITLE;
+SELECT d.department_name, j.job_title, COUNT(employee_id)
+FROM employees e
+         LEFT JOIN jobs j
+                   ON (e.job_id = j.job_id)
+         JOIN departments d
+              ON (e.department_id = d.department_id)
+GROUP BY d.department_name, j.job_title
+ORDER BY department_name;
 ```
 
 -- 5.1 f</br>
@@ -56,11 +60,10 @@ For each employee, finds the total number of employees those were hired before h
 Print employee last name and total employees.
  */
  ```sql
-SELECT E1.LAST_NAME, COUNT(E2.EMPLOYEE_ID) "Hired before"
-FROM EMPLOYEES E1
-         inner join EMPLOYEES E2
-                    on (E1.HIRE_DATE > E2.HIRE_DATE)
-GROUP BY E1.EMPLOYEE_ID, E1.LAST_NAME;
+SELECT e1.last_name, COUNT(e2.employee_id)
+FROM employees e1
+         LEFT JOIN employees e2 ON (e1.hire_date > e2.hire_date)
+GROUP BY e1.last_name;
 ```
 
 -- 5.1 g</br>
@@ -86,14 +89,36 @@ FROM (SELECT E1.EMPLOYEE_ID id, E1.LAST_NAME, COUNT(E2.EMPLOYEE_ID) "Hired befor
      ) table2;
 ```
 
+or:
+```sql
+WITH hired_before(last_name, hired_before)
+         AS (SELECT e1.last_name, COUNT(e2.employee_id) "Hired before"
+             FROM employees e1
+                      LEFT JOIN employees e2 ON (e1.hire_date > e2.hire_date)
+             GROUP BY e1.last_name),
+     hired_after(last_name, hired_after)
+         AS (
+         SELECT e1.last_name, COUNT(e2.employee_id) "Hired after"
+         FROM employees e1
+                  LEFT JOIN employees e2 ON (e1.hire_date < e2.hire_date)
+         GROUP BY e1.last_name
+     )
+SELECT hired_before.last_name, hired_before.hired_before, hired_after.hired_after
+FROM hired_before
+         INNER JOIN hired_after
+                    ON (hired_before.last_name = hired_after.last_name)
+ORDER BY last_name;
+```
+
 -- 5.1 h</br>
 -- Find the employees having salaries greater than at least three other employees
 ```sql
-SELECT E1.EMPLOYEE_ID, E1.LAST_NAME
-FROM EMPLOYEES E1
-         inner join EMPLOYEES E2 on E1.SALARY > E2.SALARY
-GROUP BY E1.EMPLOYEE_ID, E1.LAST_NAME
-HAVING count(E2.EMPLOYEE_ID) >= 3;
+SELECT e1.last_name, e1.salary, COUNT(e2.employee_id)
+FROM employees e1
+         INNER JOIN employees e2 ON e1.salary > e2.salary
+GROUP BY e1.last_name, e1.salary
+HAVING COUNT(e2.employee_id) >= 3
+ORDER BY e1.salary;
 ```
 
 -- 5.1 i</br>
@@ -135,3 +160,14 @@ where (SELECT count(DISTINCT E2.SALARY)
   so, when count returns 0,1 , 2 only then we accepts the values. And print them because they are the three
   top salaries of the department.
 </b>
+
+
+or: 
+```sql
+SELECT e1.last_name, e1.salary, COUNT(DISTINCT e2.salary) + 1 AS rank
+FROM employees e1
+         LEFT JOIN employees e2 ON e1.salary < e2.salary
+GROUP BY e1.employee_id, e1.last_name, e1.salary
+HAVING COUNT(DISTINCT e2.salary) + 1 IN (1, 2, 3)
+ORDER BY rank;
+```
